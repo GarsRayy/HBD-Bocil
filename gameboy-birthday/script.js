@@ -22,6 +22,16 @@ const PHOTO_COUNT = 3;    // Jumlah foto dikurangi jadi 3
 let videoStream = null;
 let capturedPhotos = []; 
 
+const FRAME_URL = 'images/2025.png'; 
+const FRAME_WIDTH = 540;   // Misal: lebar asli gambar 2025.jpg (atau lebar yang diinginkan)
+const FRAME_HEIGHT = 1620; // Misal: tinggi asli gambar 2025.jpg
+// Posisi & Ukuran Foto di dalam Frame saat Download:
+const DL_PHOTO_WIDTH = 480;  // Lebar foto di dalam frame
+const DL_PHOTO_HEIGHT = 350; // Tinggi foto di dalam frame
+const DL_START_X = 30;       // Jarak dari kiri frame ke foto
+const DL_START_Y = 90;      // Jarak dari atas frame ke foto pertama
+const DL_GAP_Y = 95;
+
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
@@ -412,53 +422,80 @@ async function startAutomaticCapture() {
 async function downloadPhotoStrip() {
     const downloadBtn = document.getElementById('download-btn');
     downloadBtn.disabled = true;
-    downloadBtn.textContent = 'MEMPROSES...';
+    downloadBtn.textContent = 'LAGI NYUSUN FRAME...';
+
+    if (capturedPhotos.length === 0) {
+        alert('Belum ada foto nih!');
+        resetDownloadButton();
+        return;
+    }
 
     const canvas = document.getElementById('download-canvas');
     const ctx = canvas.getContext('2d');
-    
-    if (capturedPhotos.length === 0) {
-        alert('Tidak ada foto untuk di-download.');
-        downloadBtn.disabled = false;
-        downloadBtn.textContent = 'SIMPAN FOTO';
-        return;
-    }
-    
-    // Canvas untuk menumpuk 3 foto ukuran 480x308 secara vertikal
-    canvas.width = PHOTO_WIDTH;
-    canvas.height = PHOTO_HEIGHT * capturedPhotos.length;
-    
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const imagePromises = capturedPhotos.map(dataUrl => {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => resolve(img);
-            img.onerror = reject;
-            img.src = dataUrl;
-        });
-    });
+    // 1. Atur ukuran kanvas sesuai frame
+    canvas.width = FRAME_WIDTH;
+    canvas.height = FRAME_HEIGHT;
 
     try {
-        const images = await Promise.all(imagePromises);
-        
-        images.forEach((img, index) => {
-            // Gambar setiap foto di posisi vertikal yang benar
-            ctx.drawImage(img, 0, index * PHOTO_HEIGHT, PHOTO_WIDTH, PHOTO_HEIGHT);
+        // 2. Muat gambar FRAME PNG
+        const frameImg = await new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => resolve(img);
+            img.onerror = (e) => reject('Gagal muat images/2025.png. Pastikan filenya ada!');
+            img.src = FRAME_URL;
         });
 
+        // 3. Muat semua FOTO user
+        const userPhotos = await Promise.all(capturedPhotos.map(dataUrl => {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = dataUrl;
+            });
+        }));
+
+        // --- PROSES MENGGAMBAR (URUTAN DIBALIK) ---
+
+        // 4. Bersihkan kanvas
+        ctx.clearRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+
+        // 5. GAMBAR FOTO DULUAN (agar posisinya di BELAKANG)
+        // Kita isi background putih dulu di area foto agar jika PNG-nya transparan, tidak bolong tembus pandang.
+        ctx.fillStyle = '#ffffff';
+        userPhotos.forEach((img, index) => {
+            const currentY = DL_START_Y + (index * (DL_PHOTO_HEIGHT + DL_GAP_Y));
+            
+            // (Opsional) Gambar kotak putih di belakang foto jika perlu
+            // ctx.fillRect(DL_START_X, currentY, DL_PHOTO_WIDTH, DL_PHOTO_HEIGHT);
+
+            // Gambar foto user
+            ctx.drawImage(img, DL_START_X, currentY, DL_PHOTO_WIDTH, DL_PHOTO_HEIGHT);
+        });
+
+        // 6. BARU GAMBAR FRAME PNG DI ATASNYA
+        ctx.drawImage(frameImg, 0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+
+        // 7. Download hasilnya
         const link = document.createElement('a');
-        link.download = 'photostrip-birthday.png';
-        link.href = canvas.toDataURL('image/png');
+        link.download = 'photostrip-birthday-special.png';
+        link.href = canvas.toDataURL('image/png', 1.0);
         link.click();
 
-        downloadBtn.disabled = false;
-        downloadBtn.textContent = 'SIMPAN FOTO';
+        resetDownloadButton();
 
     } catch (error) {
-        console.error('Gagal membuat photostrip:', error);
-        alert('Gagal memproses gambar untuk di-download.');
+        console.error('Gagal saat proses download:', error);
+        alert('Gagal bikin photostrip: ' + error);
+        resetDownloadButton();
+    }
+}
+
+function resetDownloadButton() {
+    const downloadBtn = document.getElementById('download-btn');
+    if (downloadBtn) {
         downloadBtn.disabled = false;
         downloadBtn.textContent = 'SIMPAN FOTO';
     }
@@ -527,8 +564,8 @@ function loadSpotifyPlaylist(playlistNumber) {
     
     const playlists = {
         1: { embedUrl: 'https://open.spotify.com/embed/playlist/37i9dQZF1DWYtQSOiZF6hj?si=0b945793c2934ba1', name: 'Birthday Special Mix', description: 'Lagu-lagu spesial untuk hari istimewa kamu ✨' },
-        2: { embedUrl: 'https://open.spotify.com/embed/playlist/3gPSenyxZMdB3A54HeEruz?si=6b4dec830d4f4a48', name: 'Love Songs Collection', description: 'Koleksi lagu cinta terbaik untuk kita ❤️' },
-        3: { embedUrl: 'https://open.spotify.com/embed/playlist/4dlQ4JHE6abxv38aae2HL1?si=95730613199e4dad', name: 'Happy Memories', description: 'Lagu-lagu yang mengingatkan kenangan indah 🌟' }
+        2: { embedUrl: 'https://open.spotify.com/embed/playlist/2iFBJqKpGdMJKpc72jOtOc?utm_source=generator', name: 'Choyya Vibes', description: 'Blend spotify kamu dan aku ❤️' },
+        3: { embedUrl: 'https://open.spotify.com/embed/playlist/7dGB9r1L7pkovQPD3TAD4J?utm_source=generator', name: 'Happy Memories', description: 'Lagu-lagu yang mengingatkan kenangan indah 🌟' }
     };
     
     const selectedPlaylist = playlists[playlistNumber];
@@ -832,6 +869,31 @@ function addEventListeners() {
             showScreen(this.getAttribute('data-page'));
         });
     });
+
+    const aBtn = document.querySelector('.a-btn');
+    const bBtn = document.querySelector('.b-btn');
+    const selectBtn = document.querySelector('.select-btn');
+
+    if (aBtn) {
+        aBtn.addEventListener('click', () => {
+            // Arahkan ke Flip Book
+            window.location.href = '../flip-book/index.html';
+        });
+    }
+
+    if (bBtn) {
+        bBtn.addEventListener('click', () => {
+             // Arahkan ke Bunga Flower
+            window.location.href = '../bunga-flower/index.html';
+        });
+    }
+
+    if (selectBtn) {
+        selectBtn.addEventListener('click', () => {
+            // Arahkan ke Infinite Love (sebagai "lain-lain")
+            window.location.href = '../infinite-love/index.html';
+        });
+    }
     
     document.querySelectorAll('.back-btn').forEach(button => {
         button.addEventListener('click', function() {
