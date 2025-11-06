@@ -188,7 +188,30 @@ p{
 	background-color: rgb(104, 211, 17);
 }
 
+/* --- TOMBOL KEMBALI RETRO --- */
+.back-btn-retro {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    padding: 10px 15px;
+    background-color: #333;
+    color: #9bbc0f; /* Warna hijau khas layar Gameboy */
+    text-decoration: none;
+    font-family: 'Courier New', Courier, monospace; /* Font retro */
+    font-weight: bold;
+    border: 3px solid #0f380f;
+    border-radius: 4px;
+    z-index: 9999; /* Pastikan selalu di paling atas */
+    box-shadow: 3px 3px 0px #0f380f;
+    transition: all 0.1s ease-in-out;
+}
 
+.back-btn-retro:hover {
+    background-color: #9bbc0f;
+    color: #0f380f;
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0px #0f380f;
+}
 
 
 
