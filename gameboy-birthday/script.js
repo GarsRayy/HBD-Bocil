@@ -6,6 +6,7 @@
 let currentScreen = 'loading';
 let tetrisGame = null;
 let gameScore = 0;
+let gameHighScore = localStorage.getItem('tetrisHighScore') || 0;
 let gameLevel = 1;
 let gameLines = 0;
 let typewriterInterval = null;
@@ -15,58 +16,36 @@ let currentMusicIndex = 0;
 let isPlaying = false;
 let playbackInterval = null;
 
+let selectedMenuIndex = 0;
+const menuItems = ['message', 'gallery', 'music', 'tetris']; // Urutan sesuai grid 2x2
+
+// Konami Code State
+const konamiCode = ['up', 'up', 'down', 'down', 'left', 'right', 'left', 'right', 'b', 'a'];
+let konamiHistory = [];
+
 const audio = {
-    mainBgm: null,
-    tetrisBgm: null,
-    click: null,
-    shutter: null,
-    startup: null,
+    mainBgm: null, tetrisBgm: null, click: null, shutter: null, startup: null, win: null,
     init: function() {
-        // Menghubungkan variabel dengan elemen audio di HTML
         this.mainBgm = document.getElementById('bgm-main');
         this.tetrisBgm = document.getElementById('bgm-tetris');
         this.click = document.getElementById('sfx-click');
         this.shutter = document.getElementById('sfx-shutter');
         this.startup = document.getElementById('sfx-startup');
-        
-        // Atur volume agar tidak terlalu keras (opsional 0.0 - 1.0)
+        this.win = new Audio('audio/win.mp3'); // Pastikan file win.mp3 ada
         if(this.mainBgm) this.mainBgm.volume = 0.5;
         if(this.tetrisBgm) this.tetrisBgm.volume = 0.4;
     },
-    playClick: function() {
-        if (this.click) {
-            this.click.currentTime = 0;
-            this.click.play().catch(e => console.log("Audio play failed (usually autoplay policy)", e));
-        }
-    },
-    playShutter: function() {
-        if (this.shutter) {
-            this.shutter.currentTime = 0;
-            this.shutter.play().catch(e => {});
-        }
-    },
-    playStartup: function() {
-        if (this.startup) {
-            this.startup.currentTime = 0;
-            this.startup.play().catch(e => {});
-        }
-    },
+    playClick: function() { if (this.click) { this.click.currentTime = 0; this.click.play().catch(() => {}); } },
+    playShutter: function() { if (this.shutter) { this.shutter.currentTime = 0; this.shutter.play().catch(() => {}); } },
+    playStartup: function() { if (this.startup) { this.startup.currentTime = 0; this.startup.play().catch(() => {}); } },
+    playWin: function() { if (this.win) { this.win.currentTime = 0; this.win.play().catch(() => {}); } },
     startMainBgm: function() {
-        // Stop tetris BGM jika sedang main
         if (this.tetrisBgm) this.tetrisBgm.pause();
-        // Mainkan BGM utama jika belum main
-        if (this.mainBgm && this.mainBgm.paused) {
-            this.mainBgm.play().catch(e => console.log("BGM need interaction first"));
-        }
+        if (this.mainBgm && this.mainBgm.paused) this.mainBgm.play().catch(() => {});
     },
     startTetrisBgm: function() {
-        // Stop main BGM
         if (this.mainBgm) this.mainBgm.pause();
-        // Mainkan tetris BGM dari awal
-        if (this.tetrisBgm) {
-            this.tetrisBgm.currentTime = 0;
-            this.tetrisBgm.play().catch(e => {});
-        }
+        if (this.tetrisBgm) { this.tetrisBgm.currentTime = 0; this.tetrisBgm.play().catch(() => {}); }
     }
 };
 // === KONFIGURASI PHOTOBOOTH TERBARU ===
@@ -92,10 +71,35 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeApp() {
+    audio.init();
     showScreen('loading');
     simulateLoading();
     addEventListeners();
     initializeTetris();
+    initBattery();
+}
+
+function initBattery() {
+    const batteryEl = document.querySelector('.battery');
+    if (batteryEl) {
+        // Ganti ikon statis dengan bar dinamis
+        batteryEl.innerHTML = '<div class="battery-level"><div class="battery-fill"></div></div>';
+        let level = 100;
+        setInterval(() => {
+            level = Math.max(0, level - 1); // Kurangi 1% setiap interval
+            updateBatteryUI(level);
+        }, 60000); // Update setiap 1 menit (simulasi)
+    }
+}
+
+function updateBatteryUI(level) {
+    const fill = document.querySelector('.battery-fill');
+    if (fill) {
+        fill.style.width = level + '%';
+        if (level <= 20) fill.className = 'battery-fill low';
+        else if (level <= 50) fill.className = 'battery-fill medium';
+        else fill.className = 'battery-fill';
+    }
 }
 
 function simulateLoading() {
@@ -168,14 +172,13 @@ function transitionToMainScreen() {
 }
 
 function initializeMainScreen() {
-    const menuButtons = document.querySelectorAll('.menu-btn');
-    menuButtons.forEach(btn => {
-        btn.addEventListener('click', function() {
-            this.style.transform = 'scale(0.95)';
-            setTimeout(() => {
-                this.style.transform = '';
-            }, 150);
-        });
+   updateMenuSelection();
+}
+
+function updateMenuSelection() {
+    document.querySelectorAll('.menu-btn').forEach((btn, index) => {
+        if (index === selectedMenuIndex) btn.classList.add('selected');
+        else btn.classList.remove('selected');
     });
 }
 
@@ -653,6 +656,12 @@ function initializeTetris() {
     const canvas = document.getElementById('tetris-canvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
+
+    document.querySelector('.tetris-stats').innerHTML = `
+        <div class="stat">HI: <span id="high-score">${gameHighScore}</span></div>
+        <div class="stat">Score: <span id="score">0</span></div>
+        <div class="stat">Lvl: <span id="level">1</span></div>
+    `;
     
     const gameContainer = document.querySelector('.tetris-game');
     let canvasWidth = 500, canvasHeight = 600;
@@ -906,6 +915,11 @@ function updateTetrisStats() {
 
 function gameOver() {
     if (tetrisGame) tetrisGame.gameRunning = false;
+    if (gameScore > gameHighScore) {
+        gameHighScore = gameScore;
+        localStorage.setItem('tetrisHighScore', gameHighScore);
+        alert("NEW HIGH SCORE! 🎉");
+    }
     document.getElementById('game-over-modal').classList.add('active');
 }
 
@@ -924,6 +938,8 @@ window.addEventListener('resize', () => {
     if (currentScreen === 'tetris') initializeTetris();
 });
 
+
+
 // ===================================
 // EVENT LISTENERS
 // ===================================
@@ -934,6 +950,13 @@ function addEventListeners() {
             showScreen(this.getAttribute('data-page'));
         });
     });
+
+    document.querySelector('.dpad-up')?.addEventListener('click', () => handleInput('up'));
+    document.querySelector('.dpad-down')?.addEventListener('click', () => handleInput('down'));
+    document.querySelector('.dpad-left')?.addEventListener('click', () => handleInput('left'));
+    document.querySelector('.dpad-right')?.addEventListener('click', () => handleInput('right'));
+    document.querySelector('.a-btn')?.addEventListener('click', () => handleInput('a'));
+    document.querySelector('.b-btn')?.addEventListener('click', () => handleInput('b'));
 
     
     const allButtons = document.querySelectorAll('button, .menu-btn, .action-btn, .dpad-center div, .control-btn, .page-btn');
@@ -1003,14 +1026,14 @@ function addEventListeners() {
         });
     }
     
-    document.addEventListener('keydown', function(event) {
-        if (currentScreen === 'tetris' && tetrisGame && tetrisGame.gameRunning) {
-            switch(event.key) {
-                case 'ArrowLeft': event.preventDefault(); moveTetrisPiece('left'); break;
-                case 'ArrowRight': event.preventDefault(); moveTetrisPiece('right'); break;
-                case 'ArrowDown': event.preventDefault(); moveTetrisPiece('down'); break;
-                case 'ArrowUp': case ' ': event.preventDefault(); rotateTetrisPiece(); break;
-            }
+    document.addEventListener('keydown', (e) => {
+        const keyMap = { 
+            'ArrowUp': 'up', 'ArrowDown': 'down', 'ArrowLeft': 'left', 'ArrowRight': 'right',
+            'z': 'a', 'x': 'b', 'Enter': 'start', 'Shift': 'select' 
+        };
+        if (keyMap[e.key]) {
+            e.preventDefault(); // Cegah scroll halaman
+            handleInput(keyMap[e.key]);
         }
     });
 }
@@ -1034,4 +1057,42 @@ function handleContinueNavigation() {
         case 'music': showScreen('tetris'); break;
         default: showScreen('main');
     }
+}
+
+
+function handleInput(input) {
+    // Konami Code Tracker
+    konamiHistory.push(input);
+    if (konamiHistory.length > konamiCode.length) konamiHistory.shift();
+    if (konamiHistory.join(',') === konamiCode.join(',')) {
+        triggerEasterEgg();
+        konamiHistory = [];
+    }
+
+    // Menu Navigation (hanya aktif di layar 'main')
+    if (currentScreen === 'main') {
+        if (input === 'up') selectedMenuIndex = (selectedMenuIndex - 2 + 4) % 4;
+        if (input === 'down') selectedMenuIndex = (selectedMenuIndex + 2) % 4;
+        if (input === 'left') selectedMenuIndex = (selectedMenuIndex % 2 === 0) ? selectedMenuIndex : selectedMenuIndex - 1;
+        if (input === 'right') selectedMenuIndex = (selectedMenuIndex % 2 !== 0) ? selectedMenuIndex : selectedMenuIndex + 1;
+        
+        if (input === 'a') { // Tombol A untuk memilih
+            showScreen(menuItems[selectedMenuIndex]);
+            return;
+        }
+        updateMenuSelection();
+    }
+    
+    // Tetris Controls (hanya aktif di layar 'tetris')
+    if (currentScreen === 'tetris' && tetrisGame?.gameRunning) {
+        if (input === 'left') moveTetrisPiece('left');
+        if (input === 'right') moveTetrisPiece('right');
+        if (input === 'down') moveTetrisPiece('down');
+        if (input === 'a' || input === 'up') rotateTetrisPiece();
+    }
+}
+function triggerEasterEgg() {
+    audio.playWin();
+    alert("🌟 KONAMI CODE ACTIVATED! 🌟\nKamu menemukan rahasia ini! I love you more! ❤️");
+    document.body.style.animation = "rainbow-bg 5s infinite"; // Tambahkan keyframe rainbow-bg di CSS jika mau
 }

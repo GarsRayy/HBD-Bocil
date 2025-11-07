@@ -1461,3 +1461,38 @@ body {
     display: none !important;
 }
 
+/* --- TAMBAHAN UNTUK NAVIGASI D-PAD --- */
+.menu-btn.selected {
+    background: #ffff00 !important; /* Warna kuning terang saat dipilih */
+    color: #333 !important;
+    transform: scale(1.1) !important;
+    box-shadow: 0 0 15px #ffff00 !important;
+    animation: menuPulse 0.8s infinite alternate;
+    z-index: 10;
+}
+
+@keyframes menuPulse {
+    from { box-shadow: 0 0 5px #ffff00; }
+    to { box-shadow: 0 0 20px #ffff00; }
+}
+
+/* --- TAMBAHAN UNTUK INDIKATOR BATERAI --- */
+.battery-level {
+    display: inline-block;
+    width: 20px;
+    height: 8px;
+    background-color: #333;
+    border: 1px solid #666;
+    margin-left: 5px;
+    position: relative;
+}
+
+.battery-fill {
+    height: 100%;
+    background-color: #44ff44; /* Hijau penuh */
+    width: 100%;
+    transition: width 0.5s, background-color 0.5s;
+}
+
+.battery-fill.medium { background-color: #ffff00; } /* Kuning setengah */
+.battery-fill.low { background-color: #ff4444; }   /* Merah kritis */
