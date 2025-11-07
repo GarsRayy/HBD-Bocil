@@ -15,6 +15,60 @@ let currentMusicIndex = 0;
 let isPlaying = false;
 let playbackInterval = null;
 
+const audio = {
+    mainBgm: null,
+    tetrisBgm: null,
+    click: null,
+    shutter: null,
+    startup: null,
+    init: function() {
+        // Menghubungkan variabel dengan elemen audio di HTML
+        this.mainBgm = document.getElementById('bgm-main');
+        this.tetrisBgm = document.getElementById('bgm-tetris');
+        this.click = document.getElementById('sfx-click');
+        this.shutter = document.getElementById('sfx-shutter');
+        this.startup = document.getElementById('sfx-startup');
+        
+        // Atur volume agar tidak terlalu keras (opsional 0.0 - 1.0)
+        if(this.mainBgm) this.mainBgm.volume = 0.5;
+        if(this.tetrisBgm) this.tetrisBgm.volume = 0.4;
+    },
+    playClick: function() {
+        if (this.click) {
+            this.click.currentTime = 0;
+            this.click.play().catch(e => console.log("Audio play failed (usually autoplay policy)", e));
+        }
+    },
+    playShutter: function() {
+        if (this.shutter) {
+            this.shutter.currentTime = 0;
+            this.shutter.play().catch(e => {});
+        }
+    },
+    playStartup: function() {
+        if (this.startup) {
+            this.startup.currentTime = 0;
+            this.startup.play().catch(e => {});
+        }
+    },
+    startMainBgm: function() {
+        // Stop tetris BGM jika sedang main
+        if (this.tetrisBgm) this.tetrisBgm.pause();
+        // Mainkan BGM utama jika belum main
+        if (this.mainBgm && this.mainBgm.paused) {
+            this.mainBgm.play().catch(e => console.log("BGM need interaction first"));
+        }
+    },
+    startTetrisBgm: function() {
+        // Stop main BGM
+        if (this.mainBgm) this.mainBgm.pause();
+        // Mainkan tetris BGM dari awal
+        if (this.tetrisBgm) {
+            this.tetrisBgm.currentTime = 0;
+            this.tetrisBgm.play().catch(e => {});
+        }
+    }
+};
 // === KONFIGURASI PHOTOBOOTH TERBARU ===
 const PHOTO_WIDTH = 480;  // Lebar target sesuai permintaan
 const PHOTO_HEIGHT = 308; // Tinggi target sesuai permintaan
@@ -80,6 +134,7 @@ function simulateLoading() {
         
         if (progress >= 100) {
             clearInterval(interval);
+            audio.playStartup();
             loadingScreen.classList.add('loading-complete');
             setTimeout(() => {
                 transitionToMainScreen();
@@ -98,6 +153,8 @@ function transitionToMainScreen() {
         loadingScreen.classList.remove('active', 'fade-out', 'loading-complete');
         mainScreen.classList.add('active', 'screen-entering');
         currentScreen = 'main';
+
+        audio.startMainBgm();
         
         setTimeout(() => {
             initializeMainScreen();
@@ -133,6 +190,13 @@ function showScreen(screenName) {
         targetScreen.classList.add('active');
         currentScreen = screenName;
         
+        if (screenName === 'tetris') {
+            audio.startTetrisBgm();
+        } else if (screenName !== 'loading') {
+            // Jika kembali dari tetris atau pindah layar lain, pastikan Main BGM nyala
+            audio.startMainBgm();
+        }
+
         switch(screenName) {
             case 'message':
                 setTimeout(initializeMessage, 100);
@@ -384,6 +448,7 @@ async function startAutomaticCapture() {
     
     for (let i = 0; i < PHOTO_COUNT; i++) {
         await runCountdown(3);
+        audio.playShutter();
 
         const photoDataUrl = takeSnapshotInternal();
         if (photoDataUrl) {
@@ -869,6 +934,12 @@ function addEventListeners() {
             showScreen(this.getAttribute('data-page'));
         });
     });
+
+    
+    const allButtons = document.querySelectorAll('button, .menu-btn, .action-btn, .dpad-center div, .control-btn, .page-btn');
+    allButtons.forEach(btn => {
+        btn.addEventListener('click', () => audio.playClick());
+     });
 
     const aBtn = document.querySelector('.a-btn');
     const bBtn = document.querySelector('.b-btn');
