@@ -1346,3 +1346,31 @@ body {
     transform: translate(2px, 2px);
     box-shadow: 1px 1px 0px #0f380f;
 }
+
+.special-message {
+    position: fixed;
+    top: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1.2em;
+    text-align: center;
+    z-index: 999;
+    text-shadow: 0 0 10px rgba(255, 105, 180, 0.7);
+    
+    /* Animasi fade-in */
+    opacity: 0;
+    animation: fadeInMessage 3s ease-in-out forwards;
+    animation-delay: 5s; /* Pesan akan muncul setelah 5 detik */
+}
+
+.special-message p {
+    margin: 0;
+    line-height: 1.4;
+}
+
+@keyframes fadeInMessage {
+    from { opacity: 0; transform: translate(-50%, -10px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+}

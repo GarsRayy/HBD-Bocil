@@ -33,3 +33,30 @@ html, body {
     transform: translate(2px, 2px);
     box-shadow: 1px 1px 0px #0f380f;
 }
+.special-message {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1.5em;
+    text-align: center;
+    z-index: 998; /* Di bawah tombol kembali */
+    text-shadow: 0 0 10px #ff0198;
+    
+    /* Animasi fade-in */
+    opacity: 0;
+    animation: fadeInMessage 3s ease-in-out forwards;
+    animation-delay: 3s; /* Pesan akan muncul setelah 3 detik */
+}
+
+.special-message p {
+    margin: 0;
+    line-height: 1.4;
+}
+
+@keyframes fadeInMessage {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}

@@ -46,4 +46,13 @@ for (var i = 0; i < uno.length; i++) {
 
 	});
 }
+const music = document.getElementById('flipbook-music');
+let hasPlayed = false;
 
+document.body.addEventListener('click', function() {
+    if (!hasPlayed) {
+        music.volume = 0.3; // Atur volume agar tidak terlalu keras
+        music.play();
+        hasPlayed = true;
+    }
+}, { once: true }); 
